@@ -6,7 +6,7 @@ from google import genai
 from dotenv import load_dotenv
 import os
 
-
+from streamlit_mic_recorder import speech_to_text
 # ============================================================
 # 1. LOAD ENVIRONMENT VARIABLES
 # ============================================================
@@ -167,7 +167,7 @@ h1, h2, h3 {
 .dashboard-header {
     background: linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%);
     border-radius: 12px;
-    padding: 1.75rem 1.25rem 1.45rem 1.25rem;
+    padding: 1.35rem 1.25rem 1.15rem 1.25rem;
     margin-top: 0.25rem;
     margin-bottom: 0.75rem;
     box-shadow: 0 4px 14px rgba(30, 58, 95, 0.18);
@@ -176,7 +176,7 @@ h1, h2, h3 {
 .main-title {
     text-align: center;
     color: #FFFFFF;
-    font-size: 1.75rem;
+    font-size: 1.8rem;
     font-weight: 800;
     margin: 0;
     line-height: 1.3;
@@ -2583,13 +2583,8 @@ else:
     st.info(
         "No numerical columns found."
     )
-
-
 # ============================================================
-# 26. GEMINI AI DATA ASSISTANT
-# ============================================================
-# ============================================================
-# STEP 17: GEMINI AI EDA ASSISTANT
+# 26. GEMINI AI EDA ASSISTANT
 # ============================================================
 
 st.markdown("---")
@@ -2597,7 +2592,44 @@ st.markdown("---")
 st.header("🤖 Gemini AI EDA Assistant")
 
 st.write(
-    "Ask Gemini questions about your dataset and its EDA results."
+    "Ask questions about your dataset using text or voice."
+)
+
+
+# ============================================================
+# LANGUAGE SELECTION
+# ============================================================
+
+language_options = {
+    "English": "en",
+    "Telugu": "te",
+    "Hindi": "hi",
+    "Tamil": "ta",
+    "Kannada": "kn",
+    "Malayalam": "ml",
+    "Bengali": "bn",
+    "Marathi": "mr",
+    "Gujarati": "gu",
+    "Punjabi": "pa",
+    "Urdu": "ur"
+}
+
+
+selected_language_name = st.selectbox(
+    "🌐 Select your language",
+    list(language_options.keys()),
+    index=0,
+    key="gemini_language_selector"
+)
+
+selected_language = language_options[
+    selected_language_name
+]
+
+
+st.caption(
+    f"🎤 Voice and Gemini responses will use: "
+    f"**{selected_language_name}**"
 )
 
 
@@ -2614,27 +2646,28 @@ if client is None:
 
 else:
 
-    # ========================================================
-    # CREATE EDA INFORMATION
-    # ========================================================
-
     try:
 
-        # ----------------------------------------------------
-        # BASIC INFORMATION
-        # ----------------------------------------------------
+        # ====================================================
+        # BASIC DATASET INFORMATION
+        # ====================================================
 
         rows = df.shape[0]
+
         columns = df.shape[1]
 
         column_names = df.columns.tolist()
 
-        data_types = df.dtypes.astype(str).to_dict()
+        data_types = (
+            df.dtypes
+            .astype(str)
+            .to_dict()
+        )
 
 
-        # ----------------------------------------------------
+        # ====================================================
         # MISSING VALUES
-        # ----------------------------------------------------
+        # ====================================================
 
         missing_values = df.isnull().sum()
 
@@ -2645,15 +2678,16 @@ else:
             if value > 0
         }
 
-
         if not missing_info:
 
-            missing_info = "No missing values found."
+            missing_info = (
+                "No missing values found."
+            )
 
 
-        # ----------------------------------------------------
+        # ====================================================
         # NUMERICAL COLUMNS
-        # ----------------------------------------------------
+        # ====================================================
 
         numerical_columns = (
             df.select_dtypes(
@@ -2664,9 +2698,9 @@ else:
         )
 
 
-        # ----------------------------------------------------
+        # ====================================================
         # CATEGORICAL COLUMNS
-        # ----------------------------------------------------
+        # ====================================================
 
         categorical_columns = (
             df.select_dtypes(
@@ -2677,9 +2711,9 @@ else:
         )
 
 
-        # ----------------------------------------------------
+        # ====================================================
         # STATISTICAL SUMMARY
-        # ----------------------------------------------------
+        # ====================================================
 
         if numerical_columns:
 
@@ -2728,7 +2762,6 @@ else:
 
         outlier_information = []
 
-
         for column in numerical_columns:
 
             data = (
@@ -2740,9 +2773,7 @@ else:
             )
 
             if len(data) == 0:
-
                 continue
-
 
             Q1 = data.quantile(0.25)
 
@@ -2758,7 +2789,6 @@ else:
                 Q3 + 1.5 * IQR
             )
 
-
             outlier_count = int(
                 (
                     (data < lower_bound)
@@ -2766,7 +2796,6 @@ else:
                     (data > upper_bound)
                 ).sum()
             )
-
 
             outlier_information.append({
 
@@ -2786,7 +2815,6 @@ else:
                         upper_bound,
                         2
                     )
-
             })
 
 
@@ -2814,8 +2842,8 @@ You are an AI Data Analysis Assistant
 inside an Exploratory Data Analysis (EDA)
 application.
 
-Analyze the user's dataset using the
-information provided below.
+Analyze the user's dataset using only
+the information provided below.
 
 ==================================================
 DATASET INFORMATION
@@ -2875,39 +2903,30 @@ IMPORTANT RULES:
 
 1. Answer using the dataset information above.
 
-2. Do not invent values.
+2. Do not invent dataset values.
 
-3. If the information is insufficient,
+3. If information is insufficient,
    clearly say that.
 
 4. Explain answers in simple language.
 
 5. The user is a student learning EDA.
 
-6. When appropriate, explain concepts such as:
-   - mean
-   - median
-   - mode
-   - missing values
-   - correlation
-   - outliers
-   - categorical variables
-   - numerical variables
+6. Give practical EDA suggestions when useful.
 
-7. Give practical EDA suggestions when useful.
+7. IMPORTANT LANGUAGE RULE:
 
-8. MULTILINGUAL SUPPORT:
-   - Understand questions written in any language.
-   - Detect the language used by the user.
-   - If the user mixes languages, identify the main/dominant language.
-   - Answer in the same language as the user's question when
-     "Auto Detect" is selected.
-   - If a specific response language is selected by the user,
-     answer in that selected language.
-   - Keep dataset column names, numbers, formulas, and technical
-     EDA terms accurate.
-   - Do not invent translations for dataset column names.
+The user selected the language:
 
+{selected_language_name}
+
+Always answer the user in
+{selected_language_name}.
+
+Do not switch to English unless
+the user specifically asks for English.
+
+==================================================
 """
 
 
@@ -2920,7 +2939,9 @@ IMPORTANT RULES:
             st.session_state.chat_history = []
 
 
-        # Display previous messages
+        # ====================================================
+        # DISPLAY PREVIOUS CHAT
+        # ====================================================
 
         for message in st.session_state.chat_history:
 
@@ -2934,129 +2955,140 @@ IMPORTANT RULES:
 
 
         # ====================================================
-        # MULTILINGUAL RESPONSE SETTINGS
+        # VOICE INPUT
         # ====================================================
 
-        st.markdown("### 🌐 Language")
+        st.subheader("🎤 Voice Question")
 
-        response_language = st.selectbox(
-            "Choose response language",
-            [
-                "Auto Detect",
-                "English",
-                "తెలుగు (Telugu)",
-                "हिन्दी (Hindi)",
-                "தமிழ் (Tamil)",
-                "ಕನ್ನಡ (Kannada)",
-                "മലയാളം (Malayalam)",
-                "मराठी (Marathi)",
-                "বাংলা (Bengali)",
-                "ગુજરાતી (Gujarati)",
-                "ਪੰਜਾਬੀ (Punjabi)",
-                "اردو (Urdu)"
-            ],
-            index=0,
-            key="response_language"
+        st.write(
+            f"Speak in **{selected_language_name}**."
         )
 
-        st.caption(
-            "Auto Detect replies in the same language used in your question."
+
+        voice_question = speech_to_text(
+            language=selected_language,
+            start_prompt="🎤 Start Voice",
+            stop_prompt="⏹️ Stop Voice",
+            just_once=True,
+            use_container_width=True,
+            key="gemini_voice_input"
         )
+
 
         # ====================================================
-        # CHAT INPUT
+        # SHOW VOICE TRANSCRIPTION
+        # ====================================================
+
+        if voice_question:
+
+            st.success(
+                f"🎤 You said: {voice_question}"
+            )
+
+
+        # ====================================================
+        # NORMAL TEXT CHAT INPUT
         # ====================================================
 
         user_question = st.chat_input(
-            "Ask Gemini about your dataset in any language..."
+            "Ask Gemini about your dataset...",
+            key="gemini_text_chat_input"
         )
 
 
         # ====================================================
-        # SEND QUESTION
+        # CHOOSE INPUT
         # ====================================================
 
-        if user_question:
+        question = None
+
+        input_type = None
+
+
+        if voice_question:
+
+            question = voice_question
+
+            input_type = "voice"
+
+        elif user_question:
+
+            question = user_question
+
+            input_type = "text"
+
+
+        # ====================================================
+        # PROCESS QUESTION
+        # ====================================================
+
+        if question:
 
             # ------------------------------------------------
-            # Display user question
+            # DISPLAY USER QUESTION
             # ------------------------------------------------
 
-            with st.chat_message(
-                "user"
-            ):
+            with st.chat_message("user"):
 
-                st.write(
-                    user_question
-                )
+                st.write(question)
 
 
             # ------------------------------------------------
-            # Save user question
+            # SAVE USER QUESTION
             # ------------------------------------------------
 
             st.session_state.chat_history.append({
 
                 "role": "user",
 
-                "content": user_question
+                "content": question
 
             })
 
 
             # ------------------------------------------------
-            # Create prompt
+            # CREATE GEMINI PROMPT
             # ------------------------------------------------
-
-            if response_language == "Auto Detect":
-                language_instruction = """
-Detect the language of the user's question automatically.
-Answer in the same language used by the user.
-If the user mixes languages, respond in the dominant language.
-"""
-            else:
-                language_instruction = f"""
-Answer in this selected language:
-{response_language}
-
-Even if the user's question is written in another language,
-understand the question correctly and provide the final answer
-in the selected language.
-"""
 
             final_prompt = f"""
 
 {eda_context}
 
 ==================================================
-LANGUAGE INSTRUCTION
-==================================================
-
-{language_instruction}
-
-==================================================
 USER QUESTION
 ==================================================
 
-{user_question}
+{question}
 
 ==================================================
 
-Answer the user's question clearly.
+INPUT TYPE:
+{input_type}
 
-If the question asks for insights,
-give useful insights based on the
-EDA information.
+SELECTED LANGUAGE:
+{selected_language_name}
 
-IMPORTANT:
-- Do not invent dataset values.
-- Use only the supplied EDA context.
-- Preserve numerical values accurately.
-- Keep column names exactly as they appear in the dataset
-  when referring to them.
-- Respond naturally and clearly in the required language.
+==================================================
+
+FINAL INSTRUCTIONS:
+
+Answer the user's question based on
+the EDA information.
+
+Answer ONLY in:
+{selected_language_name}
+
+If the user asks a technical EDA question,
+explain it in simple language.
+
+If calculations or dataset values are requested,
+use only the information available in the dataset
+context.
+
+Do not invent values.
 
 """
+
 
             # =================================================
             # CALL GEMINI
@@ -3064,37 +3096,39 @@ IMPORTANT:
 
             try:
 
-                interaction = (
-                    client.interactions.create(
+                with st.spinner(
+                    "🤖 Gemini is analyzing..."
+                ):
 
-                        model="gemini-3.6-flash",
+                    interaction = (
+                        client.interactions.create(
 
-                        input=final_prompt
+                            model="gemini-3.6-flash",
 
+                            input=final_prompt
+
+                        )
                     )
-                )
 
 
-                answer = (
-                    interaction.output_text
-                )
+                    answer = (
+                        interaction.output_text
+                    )
 
 
                 # ------------------------------------------------
-                # Display Gemini response
+                # DISPLAY GEMINI RESPONSE
                 # ------------------------------------------------
 
                 with st.chat_message(
                     "assistant"
                 ):
 
-                    st.write(
-                        answer
-                    )
+                    st.write(answer)
 
 
                 # ------------------------------------------------
-                # Save Gemini response
+                # SAVE GEMINI RESPONSE
                 # ------------------------------------------------
 
                 st.session_state.chat_history.append({
